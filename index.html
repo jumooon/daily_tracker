@@ -37,7 +37,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .check-circle i { font-size: 18px; color: #aaa; opacity: 0; }
 .task-card.done .check-circle i { color: white; opacity: 1; }
 .divider { border: none; border-top: 0.5px solid #e0e0e0; margin: 1.5rem 0; }
-.heatmap-section { margin-top: 0; }
 .heatmap-outer { display: flex; gap: 4px; align-items: flex-start; }
 .dow-col { display: flex; flex-direction: column; padding-top: 18px; gap: 2px; flex-shrink: 0; }
 .dow-label { width: 28px; height: 10px; font-size: 10px; color: #888; line-height: 10px; text-align: right; }
@@ -64,7 +63,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   <div class="stats-row">
     <div class="stat"><div class="stat-label">This year</div><div class="stat-val" id="stat-total">0</div></div>
     <div class="stat"><div class="stat-label">This month</div><div class="stat-val" id="stat-month">0</div></div>
-    <div class="stat"><div class="stat-label">Success rate</div><div class="stat-val" id="stat-rate">0%</div></div>
+    <div class="stat"><div class="stat-label">Success rate</div><div class="stat-val" id="stat-rate">—</div></div>
   </div>
   <div class="progress-header">
     <span class="progress-label">Today</span>
@@ -77,29 +76,27 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
   </div>
   <div id="tasks"></div>
   <hr class="divider">
-  <div class="heatmap-section">
-    <div class="heatmap-outer">
-      <div class="dow-col">
-        <div class="dow-label" style="visibility:hidden">x</div>
-        <div class="dow-label" style="visibility:hidden">x</div>
-        <div class="dow-label">Mon</div>
-        <div class="dow-label" style="visibility:hidden">x</div>
-        <div class="dow-label">Wed</div>
-        <div class="dow-label" style="visibility:hidden">x</div>
-        <div class="dow-label">Fri</div>
-      </div>
-      <div class="heatmap-scroll">
-        <div class="month-labels" id="month-labels"></div>
-        <div class="weeks-row" id="weeks-row"></div>
-      </div>
+  <div class="heatmap-outer">
+    <div class="dow-col">
+      <div class="dow-label" style="visibility:hidden">x</div>
+      <div class="dow-label" style="visibility:hidden">x</div>
+      <div class="dow-label">Mon</div>
+      <div class="dow-label" style="visibility:hidden">x</div>
+      <div class="dow-label">Wed</div>
+      <div class="dow-label" style="visibility:hidden">x</div>
+      <div class="dow-label">Fri</div>
     </div>
-    <div class="legend">
-      <span class="legend-label">Less</span>
-      <div class="legend-cell" style="background:#ebebeb"></div>
-      <div class="legend-cell" style="background:#9FE1CB"></div>
-      <div class="legend-cell" style="background:#1D9E75"></div>
-      <span class="legend-label">More</span>
+    <div class="heatmap-scroll">
+      <div class="month-labels" id="month-labels"></div>
+      <div class="weeks-row" id="weeks-row"></div>
     </div>
+  </div>
+  <div class="legend">
+    <span class="legend-label">Less</span>
+    <div class="legend-cell" style="background:#ebebeb"></div>
+    <div class="legend-cell" style="background:#9FE1CB"></div>
+    <div class="legend-cell" style="background:#1D9E75"></div>
+    <span class="legend-label">More</span>
   </div>
 </div>
 <script>
@@ -115,6 +112,15 @@ function todayKey() { return dayKey(new Date()); }
 function loadDay(k) { try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch(e) { return {}; } }
 function saveDay(k, s) { try { localStorage.setItem(k, JSON.stringify(s)); } catch(e) {} }
 function isSuccess(s) { return s && s.exercise && s.study && s.salad; }
+function getFirstUsedDate() {
+  const today = new Date();
+  for (let i = 365; i >= 0; i--) {
+    const d = new Date(today); d.setDate(today.getDate() - i);
+    const s = loadDay(dayKey(d));
+    if (s && (s.exercise || s.study || s.salad)) return d;
+  }
+  return today;
+}
 function calcStreak() {
   let streak = 0;
   const today = new Date();
@@ -137,7 +143,10 @@ function buildHeatmap() {
   const totalWeeks = Math.ceil((totalDays + startDow) / 7);
   let totalSuccess = 0, monthSuccess = 0;
   const curMonth = now.getMonth();
-  const daysPassed = Math.floor((now - jan1) / 86400000) + 1;
+  const firstUsed = getFirstUsedDate();
+  const firstUsedNorm = new Date(firstUsed.getFullYear(), firstUsed.getMonth(), firstUsed.getDate());
+  const todayNorm = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const daysSinceStart = Math.floor((todayNorm - firstUsedNorm) / 86400000) + 1;
   const weeksRow = document.getElementById('weeks-row');
   weeksRow.innerHTML = '';
   const monthFirstWeek = {};
@@ -177,7 +186,7 @@ function buildHeatmap() {
   }
   document.getElementById('stat-total').textContent = totalSuccess;
   document.getElementById('stat-month').textContent = monthSuccess;
-  const rate = daysPassed > 0 ? Math.round(totalSuccess / daysPassed * 100) : 0;
+  const rate = daysSinceStart > 0 ? Math.round(totalSuccess / daysSinceStart * 100) : 0;
   document.getElementById('stat-rate').textContent = rate + '%';
   document.getElementById('streak-badge').textContent = '🔥 ' + calcStreak() + '-day streak';
 }
